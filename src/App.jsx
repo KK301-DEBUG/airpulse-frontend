@@ -88,6 +88,7 @@ function useSmoothScroll() {
   }, []);
 }
 
+<<<<<<< HEAD
 function AirPulse() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -104,6 +105,45 @@ function AirPulse() {
       ease: "outQuart",
     });
   }, [location.pathname]);
+=======
+import Dashboard from "./pages/Dashboard";
+import LiveMap from "./pages/LiveMap";
+import Predictions from "./pages/Predictions";
+import Reports from "./pages/Reports";
+import Analytics from "./pages/Analytics";
+
+import Lenis from "@studio-freight/lenis";
+
+import { useState, useEffect } from "react";
+
+export default function App() {
+  const [showLoader, setShowLoader] = useState(true);
+>>>>>>> 36d4287997a95586d40173f931b6b2287b914373
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.1,
+      smoothWheel: true,
+      smoothTouch: false,
+      lerp: 0.08,
+    });
+
+    let frameId;
+
+    const raf = (time) => {
+      lenis.raf(time);
+      frameId = requestAnimationFrame(raf);
+    };
+
+    frameId = requestAnimationFrame(raf);
+
+    return () => {
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+      lenis.destroy();
+    };
+  }, []);
 
   return (
     <div className="app-shell">
