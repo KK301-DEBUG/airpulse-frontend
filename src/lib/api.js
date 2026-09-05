@@ -1,8 +1,7 @@
-import { auth } from "./firebase";
-
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://airpulse-backend-2muo.onrender.com";
+  import.meta.env.DEV
+    ? ""
+    : import.meta.env.VITE_API_BASE_URL || "https://airpulse-backend-2muo.onrender.com";
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
 function coordinateParams(latitude, longitude) {
@@ -15,14 +14,11 @@ function coordinateParams(latitude, longitude) {
   });
 }
 
-async function requestJson(path, latitude, longitude, token) {
+async function requestJson(path, latitude, longitude) {
   const params = coordinateParams(latitude, longitude);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
-  const response = await fetch(`${API_BASE_URL}${path}?${params}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    signal: controller.signal,
-  });
+  const response = await fetch(`${API_BASE_URL}${path}?${params}`, { signal: controller.signal });
   clearTimeout(timeout);
 
   if (!response.ok) {
@@ -33,8 +29,7 @@ async function requestJson(path, latitude, longitude, token) {
 }
 
 export async function getAirQuality(latitude, longitude) {
-  const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
-  return requestJson("/api/air-quality", latitude, longitude, token);
+  return requestJson("/api/air-quality", latitude, longitude);
 }
 
 export async function getWeather(latitude, longitude) {
@@ -61,27 +56,22 @@ export async function getWeather(latitude, longitude) {
 }
 
 export async function getPrediction(latitude, longitude) {
-  const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
   const predictionUrl = import.meta.env.VITE_PREDICTION_API_URL;
 
   if (predictionUrl) {
     const response = await fetch(predictionUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ features: { latitude, longitude } }),
     });
     if (!response.ok) throw new Error(`Prediction request failed with ${response.status}`);
     return response.json();
   }
 
-  return requestJson("/api/predictions", latitude, longitude, token);
+  return requestJson("/api/predictions", latitude, longitude);
 }
 
 export async function getDashboardData(latitude, longitude) {
-  const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
   const routes = {
     overview: "/api/overview",
     airQuality: "/api/air-quality",
@@ -94,7 +84,7 @@ export async function getDashboardData(latitude, longitude) {
   const entries = await Promise.all(
     Object.entries(routes).map(async ([key, path]) => {
       try {
-        return [key, await requestJson(path, latitude, longitude, token)];
+        return [key, await requestJson(path, latitude, longitude)];
       } catch {
         return [key, null];
       }

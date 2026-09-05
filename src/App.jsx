@@ -923,11 +923,16 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
               </div>
               <p>
                 {prediction ? (
-                  <>Air quality is expected to reach <strong>{prediction.predictedAqi}</strong> AQI in the next {prediction.horizonHours} hours.</>
+                  <>AQI <strong>{prediction.currentAqi}</strong> is expected to reach <strong>{prediction.predictedAqi}</strong> in the next {prediction.horizonHours} hours.</>
                 ) : (
                   "Prediction data is unavailable from the configured service."
                 )}
               </p>
+              {prediction && (
+                <p>
+                  Spike probability: <strong>{prediction.spikeProbability}%</strong>
+                </p>
+              )}
               <span>{prediction ? "Live AirPulse prediction data" : "Connect VITE_PREDICTION_API_URL for Flask /predict"}</span>
             </div>
           </div>
@@ -935,7 +940,13 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
             {prediction && <span style={{ width: `${Math.round(prediction.confidence * 100)}%` }} />}
           </div>
           <div className="prediction-foot">
-            <span>Live prediction response</span>
+            {prediction ? (
+              <span>
+                {prediction.factors.temperature}°C · {prediction.factors.humidity}% humidity · {prediction.factors.fireDetections} fire signals · {prediction.factors.citizenReports} reports
+              </span>
+            ) : (
+              <span>Live prediction response</span>
+            )}
             <span className="verified">
               <ShieldCheck size={14} /> Verified model
             </span>
