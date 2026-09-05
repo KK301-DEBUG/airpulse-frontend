@@ -17,10 +17,37 @@ import Predictions from "./pages/Predictions";
 import Reports from "./pages/Reports";
 import Analytics from "./pages/Analytics";
 
-import { useState } from "react";
+import Lenis from "@studio-freight/lenis";
+
+import { useState, useEffect } from "react";
 
 export default function App() {
   const [showLoader, setShowLoader] = useState(true);
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.1,
+      smoothWheel: true,
+      smoothTouch: false,
+      lerp: 0.08,
+    });
+
+    let frameId;
+
+    const raf = (time) => {
+      lenis.raf(time);
+      frameId = requestAnimationFrame(raf);
+    };
+
+    frameId = requestAnimationFrame(raf);
+
+    return () => {
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+      lenis.destroy();
+    };
+  }, []);
 
   return (
     <AuthProvider>

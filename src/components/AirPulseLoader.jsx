@@ -54,21 +54,27 @@ export default function AirPulseLoader({ onComplete }) {
         },
       });
 
+      // ---------------------------------------
       // Background
+      // ---------------------------------------
+
       tl.add(
         ".loader-grid",
         {
-          opacity: [0, 0.4],
+          opacity: [0, 1],
           duration: 500,
         },
         0,
       );
 
+      // ---------------------------------------
       // Particles
+      // ---------------------------------------
+
       tl.add(
         ".particle",
         {
-          opacity: [0, 0.55],
+          opacity: [0, 0.45],
           scale: [0, 1],
           duration: 400,
           delay: stagger(20),
@@ -76,7 +82,10 @@ export default function AirPulseLoader({ onComplete }) {
         100,
       );
 
+      // ---------------------------------------
       // Satellite
+      // ---------------------------------------
+
       tl.add(
         ".satellite",
         {
@@ -89,11 +98,14 @@ export default function AirPulseLoader({ onComplete }) {
         150,
       );
 
+      // ---------------------------------------
       // Radar rings
+      // ---------------------------------------
+
       tl.add(
         ".radar-ring",
         {
-          opacity: [0, 0.45],
+          opacity: [0, 1],
           scale: [0.4, 1],
           duration: 500,
           delay: stagger(80),
@@ -101,7 +113,10 @@ export default function AirPulseLoader({ onComplete }) {
         300,
       );
 
+      // ---------------------------------------
       // Map
+      // ---------------------------------------
+
       tl.add(
         ".india-map",
         {
@@ -113,7 +128,10 @@ export default function AirPulseLoader({ onComplete }) {
         400,
       );
 
+      // ---------------------------------------
       // Scan
+      // ---------------------------------------
+
       tl.add(
         ".scan-line",
         {
@@ -124,7 +142,10 @@ export default function AirPulseLoader({ onComplete }) {
         600,
       );
 
+      // ---------------------------------------
       // Hotspots
+      // ---------------------------------------
+
       tl.add(
         ".hotspot",
         {
@@ -136,7 +157,10 @@ export default function AirPulseLoader({ onComplete }) {
         900,
       );
 
+      // ---------------------------------------
       // Data
+      // ---------------------------------------
+
       tl.add(
         ".data-item",
         {
@@ -148,7 +172,10 @@ export default function AirPulseLoader({ onComplete }) {
         1100,
       );
 
+      // ---------------------------------------
       // Center logo
+      // ---------------------------------------
+
       tl.add(
         ".logo-wrapper",
         {
@@ -160,7 +187,10 @@ export default function AirPulseLoader({ onComplete }) {
         1450,
       );
 
+      // ---------------------------------------
       // Subtitle
+      // ---------------------------------------
+
       tl.add(
         ".logo-subtitle",
         {
@@ -178,6 +208,7 @@ export default function AirPulseLoader({ onComplete }) {
       tl.add(
         {
           duration: 1,
+
           onBegin: () => {
             const loaderLogo = document.querySelector("#airpulse-loader-logo");
 
@@ -189,15 +220,12 @@ export default function AirPulseLoader({ onComplete }) {
             }
 
             const from = loaderLogo.getBoundingClientRect();
-
             const to = navbarLogo.getBoundingClientRect();
 
             const fromX = from.left + from.width / 2;
-
             const fromY = from.top + from.height / 2;
 
             const toX = to.left + to.width / 2;
-
             const toY = to.top + to.height / 2;
 
             const translateX = toX - fromX;
@@ -267,7 +295,7 @@ export default function AirPulseLoader({ onComplete }) {
   return (
     <div
       ref={root}
-      className="loader-root fixed inset-0 z-[9999] overflow-hidden bg-[#020807] text-white"
+      className="loader-root fixed inset-0 z-[9999] overflow-hidden bg-[#f8faf9] text-slate-900"
     >
       <div className="relative h-full w-full">
         {/* -------------------------------- */}
@@ -279,22 +307,24 @@ export default function AirPulseLoader({ onComplete }) {
           style={{
             backgroundImage: `
               linear-gradient(
-                rgba(52,211,153,0.055) 1px,
+                rgba(16,185,129,0.09) 1px,
                 transparent 1px
               ),
               linear-gradient(
                 90deg,
-                rgba(52,211,153,0.055) 1px,
+                rgba(16,185,129,0.09) 1px,
                 transparent 1px
               )
             `,
             backgroundSize: "45px 45px",
             maskImage: "radial-gradient(circle, black 15%, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(circle, black 15%, transparent 75%)",
           }}
         />
 
         {/* Background glow */}
-        <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/[0.06] blur-[120px]" />
+        <div className="absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/[0.08] blur-[120px]" />
 
         {/* -------------------------------- */}
         {/* PARTICLES */}
@@ -308,12 +338,12 @@ export default function AirPulseLoader({ onComplete }) {
 
         <div className="loader-analysis absolute inset-0">
           {/* Top left */}
-          <div className="absolute left-6 top-6 hidden font-mono text-[9px] tracking-[0.25em] text-emerald-400/50 sm:block">
+          <div className="absolute left-6 top-6 hidden font-mono text-[9px] tracking-[0.25em] text-emerald-600/60 sm:block">
             AIRPULSE // CLIMATE INTELLIGENCE
           </div>
 
           {/* Top right */}
-          <div className="absolute right-6 top-6 hidden text-right font-mono text-[9px] leading-5 text-white/25 sm:block">
+          <div className="absolute right-6 top-6 hidden text-right font-mono text-[9px] leading-5 text-slate-400 sm:block">
             SATELLITE: ONLINE
             <br />
             WEATHER: CONNECTED
@@ -331,7 +361,7 @@ export default function AirPulseLoader({ onComplete }) {
             {[92, 72, 52].map((size, i) => (
               <div
                 key={i}
-                className="radar-ring absolute rounded-full border border-emerald-400/20 opacity-0"
+                className="radar-ring absolute rounded-full border border-emerald-500/20 opacity-0"
                 style={{
                   width: `${size}%`,
                   height: `${size}%`,
@@ -341,9 +371,9 @@ export default function AirPulseLoader({ onComplete }) {
 
             {/* Crosshair */}
 
-            <div className="absolute h-full w-px bg-gradient-to-b from-transparent via-emerald-400/10 to-transparent" />
+            <div className="absolute h-full w-px bg-gradient-to-b from-transparent via-emerald-500/15 to-transparent" />
 
-            <div className="absolute h-px w-full bg-gradient-to-r from-transparent via-emerald-400/10 to-transparent" />
+            <div className="absolute h-px w-full bg-gradient-to-r from-transparent via-emerald-500/15 to-transparent" />
 
             {/* Map */}
 
@@ -351,7 +381,7 @@ export default function AirPulseLoader({ onComplete }) {
 
             {/* Scan */}
 
-            <div className="scan-line absolute h-[1px] w-[65%] bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-0 shadow-[0_0_15px_rgba(52,211,153,0.9)]" />
+            <div className="scan-line absolute h-[1px] w-[65%] bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-0 shadow-[0_0_15px_rgba(16,185,129,0.55)]" />
 
             {/* Hotspots */}
 
@@ -365,7 +395,7 @@ export default function AirPulseLoader({ onComplete }) {
 
             <Hotspot
               className="bottom-[29%] left-[47%]"
-              color="bg-yellow-300"
+              color="bg-yellow-400"
             />
 
             {/* Satellite */}
@@ -421,31 +451,17 @@ export default function AirPulseLoader({ onComplete }) {
         >
           {/* Icon */}
 
-          <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-400/10">
-            <div className="absolute inset-0 rounded-xl bg-emerald-400/20 blur-xl" />
-
-            <svg
-              viewBox="0 0 24 24"
-              className="relative h-6 w-6 text-emerald-300"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M3 12c3-5 6-6 9-2s6 3 9-2" />
-              <path d="M3 16c3-3 6-4 9-1s6 2 9-1" />
-              <circle cx="12" cy="6" r="2" />
-            </svg>
-          </div>
+          <img src="logo.png" alt="logo" className="w-15 h-15" />
 
           {/* Text */}
 
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-[-0.04em] sm:text-4xl">
+            <h1 className="text-3xl font-bold tracking-[-0.04em] text-slate-900 sm:text-4xl">
               Air
-              <span className="text-emerald-400">Pulse</span>
+              <span className="text-emerald-600">Pulse</span>
             </h1>
 
-            <p className="logo-subtitle mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-white/35 opacity-0">
+            <p className="logo-subtitle mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-slate-400 opacity-0">
               Predict • Detect • Protect
             </p>
           </div>
@@ -457,16 +473,16 @@ export default function AirPulseLoader({ onComplete }) {
 
         <div className="absolute bottom-8 left-1/2 w-[82%] max-w-md -translate-x-1/2">
           <div className="mb-2 flex justify-between font-mono text-[9px] tracking-wider">
-            <span className="text-white/35">{status}</span>
+            <span className="text-slate-400">{status}</span>
 
-            <span className="text-emerald-400">
+            <span className="text-emerald-600">
               {String(progress).padStart(3, "0")}%
             </span>
           </div>
 
-          <div className="h-px overflow-hidden bg-white/10">
+          <div className="h-px overflow-hidden bg-slate-200">
             <div
-              className="h-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)] transition-[width] duration-75"
+              className="h-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.65)] transition-[width] duration-75"
               style={{
                 width: `${progress}%`,
               }}
@@ -476,11 +492,11 @@ export default function AirPulseLoader({ onComplete }) {
 
         {/* Coordinates */}
 
-        <div className="absolute bottom-4 left-6 hidden font-mono text-[8px] text-white/15 sm:block">
+        <div className="absolute bottom-4 left-6 hidden font-mono text-[8px] text-slate-300 sm:block">
           LAT 23.3441° N / LON 85.3096° E
         </div>
 
-        <div className="absolute bottom-4 right-6 hidden font-mono text-[8px] text-white/15 sm:block">
+        <div className="absolute bottom-4 right-6 hidden font-mono text-[8px] text-slate-300 sm:block">
           DATA FUSION ENGINE
         </div>
       </div>
@@ -498,7 +514,7 @@ function Particles() {
       {Array.from({ length: 35 }).map((_, i) => (
         <span
           key={i}
-          className="particle absolute h-[2px] w-[2px] rounded-full bg-emerald-300 opacity-0"
+          className="particle absolute h-[2px] w-[2px] rounded-full bg-emerald-400 opacity-0"
           style={{
             left: `${(i * 37) % 100}%`,
             top: `${(i * 53) % 100}%`,
@@ -538,7 +554,7 @@ function Hotspot({ className, color, large = false }) {
 function DataItem({ label, value, unit, status, right = false }) {
   return (
     <div className="data-item min-w-[145px] opacity-0">
-      <div className="font-mono text-[8px] tracking-[0.25em] text-white/25">
+      <div className="font-mono text-[8px] tracking-[0.25em] text-slate-400">
         {label}
       </div>
 
@@ -547,12 +563,12 @@ function DataItem({ label, value, unit, status, right = false }) {
           right ? "justify-end" : ""
         }`}
       >
-        <span className="text-2xl font-light text-white/80">{value}</span>
+        <span className="text-2xl font-light text-slate-700">{value}</span>
 
-        <span className="font-mono text-[8px] text-white/25">{unit}</span>
+        <span className="font-mono text-[8px] text-slate-400">{unit}</span>
       </div>
 
-      <div className="mt-1 font-mono text-[7px] tracking-[0.2em] text-emerald-400/60">
+      <div className="mt-1 font-mono text-[7px] tracking-[0.2em] text-emerald-600/70">
         {status}
       </div>
     </div>
@@ -566,11 +582,11 @@ function DataItem({ label, value, unit, status, right = false }) {
 function Satellite() {
   return (
     <div className="relative flex items-center">
-      <div className="h-4 w-7 border border-emerald-300/30 bg-emerald-400/5" />
+      <div className="h-4 w-7 border border-emerald-500/30 bg-emerald-400/10" />
 
-      <div className="mx-1 h-3 w-3 rotate-45 border border-emerald-300/60" />
+      <div className="mx-1 h-3 w-3 rotate-45 border border-emerald-500/60 bg-white" />
 
-      <div className="h-4 w-7 border border-emerald-300/30 bg-emerald-400/5" />
+      <div className="h-4 w-7 border border-emerald-500/30 bg-emerald-400/10" />
     </div>
   );
 }
@@ -619,35 +635,35 @@ function IndiaMap() {
           L92 48
           Z
         "
-        fill="rgba(16,185,129,0.025)"
-        stroke="rgba(52,211,153,0.55)"
+        fill="rgba(16,185,129,0.045)"
+        stroke="rgba(16,185,129,0.55)"
         strokeWidth="1.2"
       />
 
       <path
         d="M92 48 L132 70 L164 61 L196 83"
-        stroke="rgba(52,211,153,0.12)"
+        stroke="rgba(16,185,129,0.16)"
         strokeWidth="0.7"
         fill="none"
       />
 
       <path
         d="M74 105 L118 115 L160 106 L215 108"
-        stroke="rgba(52,211,153,0.12)"
+        stroke="rgba(16,185,129,0.16)"
         strokeWidth="0.7"
         fill="none"
       />
 
       <path
         d="M62 173 L108 164 L168 198"
-        stroke="rgba(52,211,153,0.12)"
+        stroke="rgba(16,185,129,0.16)"
         strokeWidth="0.7"
         fill="none"
       />
 
       <path
         d="M103 224 L149 205 L182 179"
-        stroke="rgba(52,211,153,0.12)"
+        stroke="rgba(16,185,129,0.16)"
         strokeWidth="0.7"
         fill="none"
       />
