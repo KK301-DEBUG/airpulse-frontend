@@ -1,0 +1,6 @@
+{
+  "name": "AirGuard - Air Quality Command Center",
+  "description": "Defense-grade environmental intelligence and AI telemetry grid for real-time air quality forecasting and climate action",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
