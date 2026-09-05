@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   NavLink,
+  Navigate,
   Route,
   Routes,
   useLocation,
@@ -21,55 +22,349 @@ import {
   Menu,
   Moon,
   Navigation,
-  Search,
   Settings2,
   ShieldCheck,
   Sparkles,
   Sun,
   Thermometer,
-  Wind,
   X,
   Zap,
 } from "lucide-react";
 import { firebaseConfigured } from "./lib/firebase";
+import {
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
+import { auth } from "./lib/firebase";
+import { getDashboardData, getWeather } from "./lib/api";
+import DashboardPage from "./pages/DashboardPage";
 import "./App.css";
 
+function AuthGate() {
+  const location = useLocation();
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(() => Boolean(auth));
+
+  useEffect(() => {
+    if (!auth) return undefined;
+    return onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
+      setChecking(false);
+    });
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="auth-loading">
+        <div className="brand-mark">
+          <span />
+          <span />
+          <span />
+        </div>
+        <p>Warming up your atmosphere...</p>
+      </div>
+    );
+  }
+
+  if (!user) return <LandingPage />;
+  if (location.pathname === "/") return <Navigate to="/dashboard" replace />;
+  return <AirPulse user={user} />;
+}
+
+function LandingPage() {
+  const navigate = useNavigate();
+  const [authMode, setAuthMode] = useState(null);
+
+  return (
+    <div className="landing-shell">
+      <header className="landing-nav">
+        <a
+          className="landing-brand"
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate("/");
+          }}
+        >
+          <span className="brand-mark">
+            <span />
+            <span />
+            <span />
+          </span>
+          <strong>
+            airpulse<span>.</span>
+          </strong>
+        </a>
+        <div className="landing-links">
+          <a href="#how-it-works">How it works</a>
+          <a href="#signals">Signals</a>
+          <button
+            className="landing-login"
+            onClick={() => setAuthMode("signin")}
+          >
+            Sign in <span>→</span>
+          </button>
+        </div>
+      </header>
+      <main>
+        <section className="landing-hero">
+          <div className="hero-copy">
+            <p className="hero-kicker">
+              <span className="live-indicator" /> Personal atmosphere
+              intelligence
+            </p>
+            <h1>
+              Know the air
+              <br />
+              <em>around you.</em>
+            </h1>
+            <p className="hero-description">
+              AirPulse turns the invisible into something you can act on. Live
+              air quality, weather signals, and clear predictions for wherever
+              you are.
+            </p>
+            <div className="hero-actions">
+              <button
+                className="hero-primary"
+                onClick={() => setAuthMode("signup")}
+              >
+                Create your free workspace <span>↗</span>
+              </button>
+              <button
+                className="hero-secondary"
+                onClick={() => setAuthMode("signin")}
+              >
+                I already have an account
+              </button>
+            </div>
+            <div className="hero-proof">
+              <span className="proof-avatars">
+                <i>RK</i>
+                <i>AS</i>
+                <i>MK</i>
+              </span>
+              <span>
+                Trusted by teams who
+                <br />
+                care about their atmosphere
+              </span>
+            </div>
+          </div>
+          <div className="hero-orbit">
+            <div className="orbit-grid" />
+            <div className="orbit-ring orbit-one" />
+            <div className="orbit-ring orbit-two" />
+            <div className="hero-globe">
+              <div className="globe-lines" />
+              <span className="globe-pulse pulse-a" />
+              <span className="globe-pulse pulse-b" />
+              <span className="globe-pulse pulse-c" />
+              <div className="globe-label label-a">
+                AIR QUALITY <small>Live signal</small>
+              </div>
+              <div className="globe-label label-b">
+                WEATHER <small>Live signal</small>
+              </div>
+              <div className="globe-label label-c">
+                PARTICLES <small>Live signal</small>
+              </div>
+            </div>
+            <div className="orbit-caption">
+              <span>LIVE / 01</span>
+              <strong>Reading your local atmosphere</strong>
+            </div>
+          </div>
+        </section>
+        <section className="signal-ribbon" id="signals">
+          <div>
+            <span className="ribbon-number">01</span>
+            <strong>Real-time signals</strong>
+            <p>See the air as it changes, not hours later.</p>
+          </div>
+          <div>
+            <span className="ribbon-number">02</span>
+            <strong>Forecast intelligence</strong>
+            <p>Make better plans with a clearer horizon.</p>
+          </div>
+          <div>
+            <span className="ribbon-number">03</span>
+            <strong>Simple decisions</strong>
+            <p>Know when to step out, stay in, or take action.</p>
+          </div>
+        </section>
+        <section className="landing-note" id="how-it-works">
+          <p className="hero-kicker">A quieter kind of weather app</p>
+          <h2>
+            Data you can feel
+            <br />
+            <span>good about using.</span>
+          </h2>
+          <p>
+            From Open-Meteo forecasts to OpenAQ air quality data, AirPulse
+            brings trusted signals together around your location. Your workspace
+            is private, personal, and ready when you are.
+          </p>
+        </section>
+      </main>
+      {authMode && (
+        <AuthPanel
+          mode={authMode}
+          setMode={setAuthMode}
+          onSuccess={() => navigate("/dashboard")}
+        />
+      )}
+    </div>
+  );
+}
+
+function AuthPanel({ mode, setMode, onSuccess }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!auth) {
+      setError(
+        "Add your Firebase environment variables to enable authentication.",
+      );
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      if (mode === "signup")
+        await createUserWithEmailAndPassword(auth, email, password);
+      else await signInWithEmailAndPassword(auth, email, password);
+      onSuccess();
+    } catch (authError) {
+      setError(
+        authError.code?.replace("auth/", "").replaceAll("-", " ") ||
+          "Authentication failed.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function googleSignIn() {
+    if (!auth) {
+      setError(
+        "Add your Firebase environment variables to enable authentication.",
+      );
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      onSuccess();
+    } catch (authError) {
+      setError(
+        authError.code?.replace("auth/", "").replaceAll("-", " ") ||
+          "Google sign-in failed.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="auth-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setMode(null);
+      }}
+    >
+      <section className="auth-panel">
+        <button
+          className="auth-close"
+          onClick={() => setMode(null)}
+          aria-label="Close sign in"
+        >
+          ×
+        </button>
+        <p className="hero-kicker">
+          {mode === "signup" ? "Start your workspace" : "Welcome back"}
+        </p>
+        <h2>
+          {mode === "signup"
+            ? "A clearer day starts here."
+            : "Good to see you again."}
+        </h2>
+        <p className="auth-subtitle">
+          {firebaseConfigured
+            ? "Sign in to see your personal atmosphere intelligence."
+            : "Connect Firebase to unlock your personal atmosphere workspace."}
+        </p>
+        <button
+          className="google-button"
+          onClick={googleSignIn}
+          disabled={busy}
+        >
+          <span>G</span> Continue with Google
+        </button>
+        <div className="auth-divider">
+          <span>or use email</span>
+        </div>
+        <form onSubmit={submit}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              placeholder="you@example.com"
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              minLength={6}
+              placeholder="At least 6 characters"
+            />
+          </label>
+          {error && <p className="auth-error">{error}</p>}
+          <button className="auth-submit" disabled={busy}>
+            {busy
+              ? "Connecting..."
+              : mode === "signup"
+                ? "Create account"
+                : "Sign in"}{" "}
+            <span>→</span>
+          </button>
+        </form>
+        <p className="auth-switch">
+          {mode === "signup" ? "Already have an account?" : "New to AirPulse?"}{" "}
+          <button
+            onClick={() => {
+              setMode(mode === "signup" ? "signin" : "signup");
+              setError("");
+            }}
+          >
+            {mode === "signup" ? "Sign in" : "Create an account"}
+          </button>
+        </p>
+      </section>
+    </div>
+  );
+}
+
 const navItems = [
-  { label: "Overview", icon: LayoutDashboard, path: "/" },
+  { label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Live map", icon: Map, path: "/map" },
   { label: "Predictions", icon: Activity, path: "/predictions" },
   { label: "Reports", icon: Gauge, path: "/reports" },
-];
-
-const forecast = [
-  {
-    day: "Now",
-    icon: Sun,
-    temp: "24°",
-    range: "18° / 26°",
-    condition: "Clear",
-  },
-  {
-    day: "Tue",
-    icon: CloudSun,
-    temp: "23°",
-    range: "17° / 25°",
-    condition: "Partly cloudy",
-  },
-  {
-    day: "Wed",
-    icon: CloudRain,
-    temp: "21°",
-    range: "16° / 23°",
-    condition: "Light showers",
-  },
-  {
-    day: "Thu",
-    icon: Sun,
-    temp: "25°",
-    range: "18° / 27°",
-    condition: "Clear",
-  },
 ];
 
 function useSmoothScroll() {
@@ -88,13 +383,81 @@ function useSmoothScroll() {
   }, []);
 }
 
-function AirPulse() {
+function AirPulse({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [selectedZone, setSelectedZone] = useState("Ranchi");
   const [alerts, setAlerts] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [weatherData, setWeatherData] = useState(null);
+  const [weatherError, setWeatherError] = useState(() =>
+    navigator.geolocation
+      ? ""
+      : "Location access is not supported in this browser.",
+  );
+  const [authUser, setAuthUser] = useState(null);
+  const [coordinates, setCoordinates] = useState(null);
+  const [locationAttempt, setLocationAttempt] = useState(0);
+  const [requestFinished, setRequestFinished] = useState(() => !navigator.geolocation);
   useSmoothScroll();
+  useEffect(() => {
+    if (!auth) return undefined;
+    return onAuthStateChanged(auth, setAuthUser);
+  }, []);
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      return undefined;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setCoordinates({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        });
+      },
+      () => {
+        setRequestFinished(true);
+        setWeatherError("Allow location access to load air quality near you.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+    return undefined;
+  }, [locationAttempt]);
+  useEffect(() => {
+    if (!coordinates) return undefined;
+    let active = true;
+    Promise.allSettled([
+      getDashboardData(coordinates.latitude, coordinates.longitude),
+      getWeather(coordinates.latitude, coordinates.longitude),
+    ])
+      .then(([dashboardResult, weatherResult]) => {
+        if (!active) return;
+        if (dashboardResult.status === "fulfilled") {
+          setDashboardData(dashboardResult.value);
+        }
+        if (weatherResult.status === "fulfilled") {
+          setWeatherData(weatherResult.value);
+        }
+        if (
+          dashboardResult.status === "fulfilled" &&
+          dashboardResult.value?.airQuality &&
+          weatherResult.status === "fulfilled"
+        ) {
+          setWeatherError("");
+        } else {
+          setWeatherError(
+            "Some live signals are unavailable. Try again to refresh the dashboard.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setRequestFinished(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [coordinates, authUser]);
   useEffect(() => {
     animate(".reveal", {
       opacity: [0, 1],
@@ -105,212 +468,308 @@ function AirPulse() {
     });
   }, [location.pathname]);
 
+  const dataReady = Boolean(
+    dashboardData?.airQuality &&
+    dashboardData?.analytics &&
+    weatherData?.current &&
+    weatherData?.daily,
+  );
+
   return (
-    <div className="app-shell">
-      <aside className={`sidebar ${mobileOpen ? "is-open" : ""}`}>
-        <div className="brand-row">
-          <div className="brand-mark">
+    <>
+      {!dataReady && !requestFinished && (
+        <div className="workspace-loading">
+          <div className="loading-orbit">
             <span />
             <span />
             <span />
           </div>
-          <span className="brand-name">
-            airpulse<span>.</span>
-          </span>
-          <button
-            className="icon-button close-menu"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="workspace-switcher">
-          <div className="workspace-avatar">A</div>
-          <div>
-            <strong>AirPulse HQ</strong>
-            <small>
-              Workspace / {firebaseConfigured ? "Firebase" : "Local mode"}
-            </small>
-          </div>
-          <ChevronDown size={15} />
-        </div>
-        <p className="nav-label">Monitor</p>
-        <nav className="main-nav">
-          {navItems.map(({ label, icon: Icon, path }) => (
-            <NavLink
-              key={path}
-              to={path}
-              end={path === "/"}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? "active" : ""}`
-              }
-            >
-              <Icon size={17} strokeWidth={1.8} />
-              <span>{label}</span>
-              {label === "Predictions" && <em>Beta</em>}
-            </NavLink>
-          ))}
-        </nav>
-        <p className="nav-label">Manage</p>
-        <nav className="main-nav">
-          <button className="nav-link">
-            <Settings2 size={17} strokeWidth={1.8} />
-            <span>Settings</span>
-          </button>
-          <button className="nav-link">
-            <Bell size={17} strokeWidth={1.8} />
-            <span>Alerts</span>
-            <b className="alert-dot" />
-          </button>
-        </nav>
-        <div className="sidebar-footer">
-          <div className="status-line">
-            <span className="pulse-dot" /> System status{" "}
-            <strong>Operational</strong>
-          </div>
-          <div className="user-row">
-            <div className="user-avatar">RK</div>
-            <div>
-              <strong>Riya Kapoor</strong>
-              <small>Admin account</small>
-            </div>
-            <span className="more-dots">•••</span>
-          </div>
-        </div>
-      </aside>
-      {mobileOpen && (
-        <button
-          className="mobile-scrim"
-          onClick={() => setMobileOpen(false)}
-          aria-label="Close navigation"
-        />
-      )}
-      <main className="main-content">
-        <header className="topbar">
-          <button
-            className="icon-button menu-button"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu size={20} />
-          </button>
-          <div className="breadcrumb">
-            <span>Workspace</span>
-            <span>/</span>
-            <strong>
-              {location.pathname === "/"
-                ? "Overview"
-                : location.pathname.slice(1)}
-            </strong>
-          </div>
-          <div className="top-actions">
-            <div className="search-box">
-              <Search size={16} />
-              <input
-                placeholder="Search location"
-                aria-label="Search location"
-              />
-            </div>
-            <button
-              className={`icon-button notification-button ${alerts ? "has-alert" : ""}`}
-              onClick={() => setAlerts(!alerts)}
-              aria-label="Toggle alerts"
-            >
-              <Bell size={18} />
-            </button>
-            <div className="top-avatar">RK</div>
-          </div>
-        </header>
-        <div className="page-content">
-          <div className="page-heading reveal">
-            <div>
-              <p className="eyebrow">
-                <span className="live-indicator" /> Live atmosphere intelligence
-              </p>
-              <h1>Good morning, Riya</h1>
-              <p className="heading-copy">
-                Your atmosphere is being monitored. Here's what's happening
-                across your workspace.
-              </p>
-            </div>
-            <div className="heading-controls">
-              <button className="date-button">
-                <span>Last updated</span>
-                <strong>Today, 09:42 AM</strong>
-                <ChevronDown size={15} />
-              </button>
+          <div className="loading-copy">
+            <strong>Reading your atmosphere</strong>
+            <span>
+              {weatherError ||
+                "Connecting to live air quality and weather signals..."}
+            </span>
+            {weatherError && (
               <button
-                className="primary-button"
-                onClick={() => navigate("/reports")}
+                className="retry-location"
+                onClick={() => {
+                  setWeatherError("");
+                  setRequestFinished(false);
+                  setCoordinates(null);
+                  setLocationAttempt((attempt) => attempt + 1);
+                }}
               >
-                <Zap size={15} fill="currentColor" /> Generate report
+                Try location access again
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {!dataReady && requestFinished && (
+        <div className="workspace-loading workspace-error-state">
+          <div className="loading-orbit loading-orbit-error"><span>!</span></div>
+          <div className="loading-copy">
+            <strong>Live data could not be loaded</strong>
+            <span>{weatherError || "The dashboard needs a fresh location reading."}</span>
+            <button className="retry-location" onClick={() => { setRequestFinished(false); setWeatherError(""); setDashboardData(null); setWeatherData(null); setCoordinates(null); setLocationAttempt((attempt) => attempt + 1); }}>Try again</button>
+          </div>
+        </div>
+      )}
+      {dataReady && (
+        <div className="app-shell">
+          <aside className={`sidebar ${mobileOpen ? "is-open" : ""}`}>
+            <div className="brand-row">
+              <div className="brand-mark">
+                <span />
+                <span />
+                <span />
+              </div>
+              <span className="brand-name">
+                airpulse<span>.</span>
+              </span>
+              <button
+                className="icon-button close-menu"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close menu"
+              >
+                <X size={18} />
               </button>
             </div>
-          </div>
-          <Routes>
-            <Route
-              path="*"
-              element={
-                <Dashboard
-                  selectedZone={selectedZone}
-                  setSelectedZone={setSelectedZone}
-                  alerts={alerts}
-                  forecast={forecast}
-                />
-              }
+            <div className="workspace-switcher">
+              <div className="workspace-avatar">A</div>
+              <div>
+                <strong>AirPulse HQ</strong>
+                <small>
+                  Workspace / {firebaseConfigured ? "Firebase" : "Local mode"}
+                </small>
+              </div>
+              <ChevronDown size={15} />
+            </div>
+            <p className="nav-label">Monitor</p>
+            <nav className="main-nav">
+              {navItems.map(({ label, icon: Icon, path }) => (
+                <NavLink
+                  key={path}
+                  to={path}
+                  end={path === "/"}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  <Icon size={17} strokeWidth={1.8} />
+                  <span>{label}</span>
+                  {label === "Predictions" && <em>Beta</em>}
+                </NavLink>
+              ))}
+            </nav>
+            <p className="nav-label">Manage</p>
+            <nav className="main-nav">
+              <button className="nav-link">
+                <Settings2 size={17} strokeWidth={1.8} />
+                <span>Settings</span>
+              </button>
+              <button className="nav-link">
+                <Bell size={17} strokeWidth={1.8} />
+                <span>Alerts</span>
+                <b className="alert-dot" />
+              </button>
+            </nav>
+            <div className="sidebar-footer">
+              <div className="status-line">
+                <span className="pulse-dot" /> System status{" "}
+                <strong>Operational</strong>
+              </div>
+              <div className="user-row">
+                <div className="user-avatar">●</div>
+                <div>
+                  <strong>Authenticated workspace</strong>
+                  <small>{user.email || "Signed-in account"}</small>
+                </div>
+                <button
+                  className="signout-button"
+                  onClick={() => signOut(auth)}
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </aside>
+          {mobileOpen && (
+            <button
+              className="mobile-scrim"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close navigation"
             />
-          </Routes>
+          )}
+          <main className="main-content">
+            <header className="topbar">
+              <button
+                className="icon-button menu-button"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="breadcrumb">
+                <span>Workspace</span>
+                <span>/</span>
+                <strong>
+                  {location.pathname === "/"
+                    ? "Overview"
+                    : location.pathname.slice(1)}
+                </strong>
+              </div>
+              <div className="top-actions">
+                <button
+                  className={`icon-button notification-button ${alerts ? "has-alert" : ""}`}
+                  onClick={() => setAlerts(!alerts)}
+                  aria-label="Toggle alerts"
+                >
+                  <Bell size={18} />
+                </button>
+                <div className="top-avatar">●</div>
+              </div>
+            </header>
+            <DashboardPage>
+            <div className="page-content">
+              <div className="page-heading reveal">
+                <div>
+                  <p className="eyebrow">
+                    <span className="live-indicator" /> Live atmosphere
+                    intelligence
+                  </p>
+                  <h1>Your atmosphere workspace</h1>
+                  <p className="heading-copy">
+                    Your atmosphere is being monitored. Here's what's happening
+                    across your workspace.
+                  </p>
+                </div>
+                <div className="heading-controls">
+                  <button
+                    className="primary-button"
+                    onClick={() => navigate("/reports")}
+                  >
+                    <Zap size={15} fill="currentColor" /> Generate report
+                  </button>
+                </div>
+              </div>
+              <Routes>
+                <Route
+                  path="*"
+                  element={
+                    <Dashboard
+                      alerts={alerts}
+                      dashboardData={dashboardData}
+                      weatherData={weatherData}
+                      weatherError={weatherError}
+                      dataReady={dataReady}
+                    />
+                  }
+                />
+              </Routes>
+            </div>
+            </DashboardPage>
+          </main>
         </div>
-      </main>
-    </div>
+      )}
+    </>
   );
 }
 
-function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
+function weatherCodeLabel(code) {
+  if (code === 0) return "Clear";
+  if (code <= 3) return "Partly cloudy";
+  if (code <= 48) return "Foggy";
+  if (code <= 67) return "Rain showers";
+  if (code <= 77) return "Snow";
+  if (code <= 82) return "Rain showers";
+  return "Thunderstorms";
+}
+
+function weatherCodeIcon(code) {
+  if (code === 0) return Sun;
+  if (code <= 3) return CloudSun;
+  return CloudRain;
+}
+
+function formatTime(value) {
+  return value
+    ? new Date(value).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "--:--";
+}
+
+function formatForecast(weatherData) {
+  const daily = weatherData?.daily;
+  if (!daily?.time?.length) return [];
+  return daily.time.map((date, index) => {
+    const max = Math.round(daily.temperature_2m_max[index]);
+    const min = Math.round(daily.temperature_2m_min[index]);
+    return {
+      day:
+        index === 0
+          ? "Now"
+          : new Date(`${date}T12:00:00`).toLocaleDateString([], {
+              weekday: "short",
+            }),
+      icon: weatherCodeIcon(daily.weather_code[index]),
+      temp: `${max}°`,
+      range: `${min}° / ${max}°`,
+      condition: weatherCodeLabel(daily.weather_code[index]),
+    };
+  });
+}
+
+function Dashboard({ alerts, dashboardData, weatherData }) {
+  const weather =
+    dashboardData?.airQuality ?? dashboardData?.overview?.airQuality;
+  const prediction = dashboardData?.predictions;
+  const aqi = weather.aqi;
+  const aqiCategory = weather.category;
+  const location = weather.location;
+  const pm25 = weather.pm25;
+  const pm10 = weather.pm10;
+  const currentWeather = weatherData?.current;
+  const localForecast = formatForecast(weatherData);
   return (
     <>
       <section className="stats-grid">
         <StatCard
           label="Air quality index"
-          value="42"
+          value={aqi}
           unit="US AQI"
-          status="Good"
+          status={aqiCategory}
           tone="green"
-          icon={<Wind />}
-          trend="12%"
-          trendCopy="better than yesterday"
+          trendCopy="Live OpenAQ reading"
         />
         <StatCard
           label="Temperature"
-          value="24"
+          value={Math.round(currentWeather.temperature_2m)}
           unit="°C"
-          status="Feels like 25°"
-          tone="yellow"
+          status={`${Math.round(currentWeather.apparent_temperature)}° feels like`}
           icon={<Thermometer />}
-          trend="2°"
-          trendCopy="warmer than avg."
+          trendCopy="Live Open-Meteo reading"
         />
         <StatCard
           label="Humidity"
-          value="48"
+          value={Math.round(currentWeather.relative_humidity_2m)}
           unit="%"
-          status="Comfortable"
           tone="blue"
           icon={<Droplets />}
-          trend="6%"
-          trendCopy="lower than yesterday"
+          trendCopy="Live Open-Meteo reading"
         />
         <StatCard
           label="Wind speed"
-          value="12"
-          unit="km/h"
-          status="From the NE"
+          value={Math.round(currentWeather.wind_speed_10m)}
+          status="Current wind"
           tone="purple"
           icon={<Navigation />}
-          trend="3 km/h"
-          trendCopy="faster than yesterday"
+          trendCopy="Live Open-Meteo reading"
         />
       </section>
       <section className="primary-grid">
@@ -324,19 +783,18 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
           <div className="atmosphere-main">
             <div className="aqi-ring">
               <div className="ring-glow" />
-              <strong>42</strong>
-              <span>Good air</span>
+              <strong>{aqi}</strong>
+              <span>{aqiCategory}</span>
               <small>US AQI</small>
             </div>
             <div className="atmosphere-copy">
               <div className="location-row">
                 <Navigation size={14} className="map-pin" />
-                <strong>{selectedZone}, India</strong>
+                <strong>{location}</strong>
                 <span className="location-change">Change location</span>
               </div>
               <p>
-                Air quality is ideal for outdoor activities. Enjoy your day
-                outside.
+                Live air quality reading from the connected atmosphere network.
               </p>
               <div className="meter">
                 <div className="meter-track">
@@ -353,23 +811,24 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
           </div>
           <div className="chart-wrap">
             <div className="chart-title">
-              <span>24-hour AQI trend</span>
-              <span className="chart-value">
-                42 <small>current</small>
-              </span>
+              <span>Air quality history</span>
+              <span className="chart-value">Live API</span>
             </div>
-            <AqiChart />
+            <div className="live-data-note">
+              Historical AQI values will appear when the backend provides a time
+              series.
+            </div>
           </div>
         </article>
         <article className="panel forecast-panel reveal">
           <PanelHeader
             title="Local forecast"
-            kicker="Ranchi, India"
-            action="7 days"
+            kicker={location}
+            action="Forecast"
             path="/predictions"
           />
           <div className="forecast-list">
-            {forecast.map(
+            {localForecast.map(
               ({ day, icon: Icon, temp, range, condition }, index) => (
                 <div
                   className={`forecast-row ${index === 0 ? "current" : ""}`}
@@ -390,13 +849,13 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
           <div className="sun-line">
             <Sun size={15} />
             <span>
-              Sunrise <b>05:38</b>
+              Sunrise <b>{formatTime(weatherData?.daily?.sunrise?.[0])}</b>
             </span>
             <span className="sun-progress">
               <i />
             </span>
             <span>
-              Sunset <b>18:21</b>
+              Sunset <b>{formatTime(weatherData?.daily?.sunset?.[0])}</b>
             </span>
           </div>
         </article>
@@ -412,36 +871,36 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
           <div className="pollutants">
             <Pollutant
               name="PM2.5"
-              value="12"
+              value={pm25}
               unit="µg/m³"
-              percent="18%"
               color="green"
-              note="Excellent"
+              note="Live reading"
             />
             <Pollutant
               name="PM10"
-              value="24"
+              value={pm10}
               unit="µg/m³"
-              percent="32%"
               color="teal"
-              note="Good"
+              note="Live reading"
             />
-            <Pollutant
-              name="NO₂"
-              value="18"
-              unit="ppb"
-              percent="26%"
-              color="yellow"
-              note="Normal"
-            />
-            <Pollutant
-              name="O₃"
-              value="31"
-              unit="ppb"
-              percent="44%"
-              color="orange"
-              note="Normal"
-            />
+            {weather.no2 !== undefined && (
+              <Pollutant
+                name="NO₂"
+                value={weather.no2}
+                unit="ppb"
+                color="yellow"
+                note="Live reading"
+              />
+            )}
+            {weather.o3 !== undefined && (
+              <Pollutant
+                name="O₃"
+                value={weather.o3}
+                unit="ppb"
+                color="orange"
+                note="Live reading"
+              />
+            )}
           </div>
         </article>
         <article className="panel prediction-panel reveal">
@@ -453,9 +912,7 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
           />
           <div className="prediction-content">
             <div className="confidence-score">
-              <strong>
-                94<span>%</span>
-              </strong>
+              {prediction ? <><strong>{Math.round(prediction.confidence * 100)}<span>%</span></strong></> : <strong>--</strong>}
               <small>Confidence</small>
             </div>
             <div className="prediction-message">
@@ -463,17 +920,20 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
                 <Sparkles size={15} />
               </div>
               <p>
-                Air quality is expected to remain <strong>good</strong> for the
-                next 48 hours.
+                {prediction ? (
+                  <>Air quality is expected to reach <strong>{prediction.predictedAqi}</strong> AQI in the next {prediction.horizonHours} hours.</>
+                ) : (
+                  "Prediction data is unavailable from the configured service."
+                )}
               </p>
-              <span>Based on 14,280 data points</span>
+              <span>{prediction ? "Live AirPulse prediction data" : "Connect VITE_PREDICTION_API_URL for Flask /predict"}</span>
             </div>
           </div>
           <div className="confidence-bar">
-            <span />
+            {prediction && <span style={{ width: `${Math.round(prediction.confidence * 100)}%` }} />}
           </div>
           <div className="prediction-foot">
-            <span>Model updated 8 min ago</span>
+            <span>Live prediction response</span>
             <span className="verified">
               <ShieldCheck size={14} /> Verified model
             </span>
@@ -485,20 +945,12 @@ function Dashboard({ selectedZone, setSelectedZone, alerts, forecast }) {
           <CloudSun size={22} />
         </div>
         <div>
-          <strong>Conditions are favorable today</strong>
+          <strong>Live conditions loaded</strong>
           <p>
-            Low pollution and comfortable temperatures make it a great day to be
-            outdoors.
+            Current weather and air-quality readings are connected to your
+            location.
           </p>
         </div>
-        <button
-          className="text-button"
-          onClick={() =>
-            setSelectedZone(selectedZone === "Ranchi" ? "New Delhi" : "Ranchi")
-          }
-        >
-          Compare locations <span>→</span>
-        </button>
       </section>
       {!alerts && (
         <div className="alert-toast">
@@ -531,7 +983,7 @@ function StatCard({
         <small>{unit}</small>
       </div>
       <div className="trend">
-        <span>↑ {trend}</span> {trendCopy}
+        {trend ? <span>↑ {trend}</span> : null} {trendCopy}
       </div>
     </article>
   );
@@ -549,7 +1001,7 @@ function PanelHeader({ title, kicker, action, path }) {
     </div>
   );
 }
-function Pollutant({ name, value, unit, percent, color, note }) {
+function Pollutant({ name, value, unit, color, note }) {
   return (
     <div className="pollutant-row">
       <div className="pollutant-name">
@@ -557,8 +1009,8 @@ function Pollutant({ name, value, unit, percent, color, note }) {
         <strong>{name}</strong>
         <small>{note}</small>
       </div>
-      <div className="pollutant-bar">
-        <span className={color} style={{ width: percent }} />
+      <div className="pollutant-bar live-only">
+        <span className={color} />
       </div>
       <div className="pollutant-value">
         <strong>{value}</strong>
@@ -567,42 +1019,6 @@ function Pollutant({ name, value, unit, percent, color, note }) {
     </div>
   );
 }
-function AqiChart() {
-  return (
-    <div className="aqi-chart">
-      <svg
-        viewBox="0 0 700 170"
-        preserveAspectRatio="none"
-        role="img"
-        aria-label="Air quality trend chart"
-      >
-        <defs>
-          <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#3da977" stopOpacity=".25" />
-            <stop offset="1" stopColor="#3da977" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path
-          className="chart-area"
-          d="M0,108 C45,98 65,115 100,97 S155,75 195,88 S245,111 280,89 S330,54 370,72 S425,96 460,73 S515,57 550,63 S610,43 700,34 V170 H0 Z"
-        />
-        <path
-          className="chart-line"
-          d="M0,108 C45,98 65,115 100,97 S155,75 195,88 S245,111 280,89 S330,54 370,72 S425,96 460,73 S515,57 550,63 S610,43 700,34"
-        />
-        <circle cx="700" cy="34" r="5" />
-      </svg>
-      <div className="chart-axis">
-        <span>12 AM</span>
-        <span>6 AM</span>
-        <span>12 PM</span>
-        <span>6 PM</span>
-        <span>Now</span>
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
-  return <AirPulse />;
+  return <AuthGate />;
 }
