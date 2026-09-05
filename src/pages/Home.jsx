@@ -4,7 +4,6 @@ import {
   BrainCircuit,
   ChevronRight,
   Cloud,
-  Droplets,
   MapPin,
   ShieldCheck,
   Sparkles,
@@ -50,7 +49,7 @@ export default function Home() {
     }, 2800);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [metrics.length]);
 
   return (
     <>

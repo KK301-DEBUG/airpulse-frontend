@@ -46,6 +46,8 @@ export default function Navbar() {
   ========================================================= */
 
   useEffect(() => {
+    // Route changes close transient menus; the state is not external data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
     setProfileOpen(false);
   }, [location.pathname]);

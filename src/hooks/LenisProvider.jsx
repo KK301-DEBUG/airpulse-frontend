@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Lenis from "@studio-freight/lenis";
 
 import { LenisContext } from "./lenisContext";
