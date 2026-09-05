@@ -22,7 +22,7 @@ import { CitizenReportItem, GeoNodeKey, HotspotData, IncidentAlert, NavScreen } 
 export default function App() {
   // Navigation & Location
   const [activeScreen, setActiveScreen] = useState<NavScreen>('overview');
-  const [selectedGeoNode, setSelectedGeoNode] = useState<GeoNodeKey>('ranchi');
+  const [selectedGeoNode, setSelectedGeoNode] = useState<GeoNodeKey>('Ranchi');
 
   // Modals state
   const [isSitRepOpen, setIsSitRepOpen] = useState(false);
