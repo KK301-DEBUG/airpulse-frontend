@@ -1,64 +1,80 @@
-import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import AirPulseLoader from "./components/AirPulseLoader";
+import { AuthProvider } from "./context/authContext";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
-import Lenis from "@studio-freight/lenis";
+import AirPulseLoader from "./components/AirPulseLoader";
+
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+
+import Dashboard from "./pages/Dashboard";
+import LiveMap from "./pages/LiveMap";
+import Predictions from "./pages/Predictions";
+import Reports from "./pages/Reports";
+import Analytics from "./pages/Analytics";
+
+import { useState } from "react";
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.1,
-      smoothWheel: true,
-      smoothTouch: false,
-      lerp: 0.08,
-    });
-
-    let frameId;
-
-    const raf = (time) => {
-      lenis.raf(time);
-      frameId = requestAnimationFrame(raf);
-    };
-
-    frameId = requestAnimationFrame(raf);
-
-    return () => {
-      if (frameId) {
-        cancelAnimationFrame(frameId);
-      }
-      lenis.destroy();
-    };
-  }, []);
+  const [showLoader, setShowLoader] = useState(true);
 
   return (
-    <div className="min-h-screen bg-[#020807] text-white">
-      {/* Navbar exists behind loader */}
+    <AuthProvider>
+      {/* Loader on EVERY refresh */}
+
+      {showLoader && <AirPulseLoader onComplete={() => setShowLoader(false)} />}
+
+      <Routes>
+        {/* ================================= */}
+        {/* PUBLIC */}
+        {/* ================================= */}
+
+        <Route path="/" element={<Home />} />
+
+        <Route path="/login" element={<Login />} />
+
+        <Route path="/signup" element={<Signup />} />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        {/* ================================= */}
+        {/* PROTECTED */}
+        {/* ================================= */}
+
+        <Route element={<ProtectedRoute />}>
+          {/* Navbar only for logged-in area */}
+
+          <Route element={<NavbarLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            <Route path="/map" element={<LiveMap />} />
+
+            <Route path="/predictions" element={<Predictions />} />
+
+            <Route path="/reports" element={<Reports />} />
+
+            <Route path="/analytics" element={<Analytics />} />
+          </Route>
+        </Route>
+      </Routes>
+    </AuthProvider>
+  );
+}
+
+import { Outlet } from "react-router-dom";
+
+function NavbarLayout() {
+  return (
+    <>
       <Navbar />
 
-      {/* Loader */}
-      {loading && <AirPulseLoader onComplete={() => setLoading(false)} />}
-
-      {/* ================================= */}
-      {/* YOUR WEBSITE */}
-      {/* ================================= */}
-
       <main className="pt-16">
-        <section className="flex min-h-screen items-center justify-center">
-          <div className="text-center">
-            <p className="mb-3 font-mono text-xs tracking-[0.3em] text-emerald-400/50">
-              CLIMATE INTELLIGENCE PLATFORM
-            </p>
-
-            <h1 className="text-5xl font-semibold tracking-tight">AirPulse</h1>
-
-            <p className="mt-4 max-w-lg text-white/40">
-              Predicting pollution before it becomes a public health crisis.
-            </p>
-          </div>
-        </section>
+        <Outlet />
       </main>
-    </div>
+    </>
   );
 }

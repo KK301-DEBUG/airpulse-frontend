@@ -440,9 +440,9 @@ export default function AirPulseLoader({ onComplete }) {
           {/* Text */}
 
           <div>
-            <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-              AIR
-              <span className="text-emerald-400">PULSE</span>
+            <h1 className="text-3xl font-bold text-white tracking-[-0.04em] sm:text-4xl">
+              Air
+              <span className="text-emerald-400">Pulse</span>
             </h1>
 
             <p className="logo-subtitle mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-white/35 opacity-0">
