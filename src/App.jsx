@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-import { Routes, Route } from "react-router-dom";
-=======
 import { useEffect, useState } from "react";
 import {
   NavLink,
@@ -46,7 +43,6 @@ import { auth } from "./lib/firebase";
 import { getDashboardData, getWeather } from "./lib/api";
 import DashboardPage from "./pages/DashboardPage";
 import "./App.css";
->>>>>>> eb47bb5b5c5443ccc9fabaad1b2b7c7f0efb7ffb
 
 function AuthGate() {
   const location = useLocation();
@@ -463,6 +459,7 @@ function AirPulse({ user }) {
     };
   }, [coordinates, authUser]);
   useEffect(() => {
+    if (!document.querySelector(".reveal")) return undefined;
     animate(".reveal", {
       opacity: [0, 1],
       translateY: [14, 0],
@@ -470,6 +467,7 @@ function AirPulse({ user }) {
       duration: 650,
       ease: "outQuart",
     });
+    return undefined;
   }, [location.pathname]);
 
   const dataReady = Boolean(

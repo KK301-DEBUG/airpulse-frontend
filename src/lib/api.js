@@ -89,7 +89,6 @@ export async function getDashboardData(latitude, longitude) {
     reports: "/api/reports",
     alerts: "/api/alerts",
     analytics: "/api/analytics",
-    environment: "/api/environment",
   };
 
   const entries = await Promise.all(
