@@ -1,16 +1,33 @@
-# React + Vite
+# AirPulse Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite command centre for the AirPulse federated climate platform.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+cp .env.example .env
+npm install
+npm run dev      # http://localhost:5173
+```
 
-## React Compiler
+Point `VITE_API_BASE_URL` at the backend (`http://localhost:4000` for local dev; the Vite proxy is not required,
+the API base URL is used directly). Weather is fetched client-side from Open-Meteo — no key, no backend hop.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Surfaces
 
-## Expanding the ESLint configuration
+| Route | What it shows |
+| --- | --- |
+| `/dashboard` | Live AQI (station vs estimate labelled), projected hotspot markers, evidence-ranked AI intelligence card, recorded history chart, pollutant breakdown |
+| `/map` | Hotspots projected from **real coordinates**, NASA FIRMS fire pixels, per-hotspot source attribution and evidence |
+| `/predictions` | 6 h → 7 day spike forecast for any city, with contributing factors |
+| `/corridors` | Economic-corridor forecasts (Delhi–Kolkata belt, western, southern, central mining belt, east coast) |
+| `/reports` | Citizen photo + description, classified by the vision model |
+| `/alerts` | Auto-raised and manual alerts, each routed to the responsible pollution board |
+| `/network` | Federated nodes plus the shared model catalogue (update stats only, no raw data) |
+| `/analytics` | Trends computed from observed readings, affected zones, corridor risk |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Conventions
+
+- `src/hooks/api.js` is the only HTTP client. It is also the place to add endpoints.
+- Every panel degrades to an explicit empty state instead of showing a placeholder value.
+- The map is a schematic stage; markers are placed with a real equirectangular projection over India's bbox.

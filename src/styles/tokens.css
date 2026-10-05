@@ -1,0 +1,343 @@
+/* ============================================================================
+   AIRGUARD — sensor-tactical design system (v2)
+
+   Governing rules, from the design decisions:
+   1. Saturated colour is RESERVED FOR AIR DATA. Chrome is cyan, white or slate.
+      Green means clean air. Red means hazard. Nothing decorative is ever green.
+   2. Motion must never imply data that isn't there. If the value did not
+      change, nothing moves. Only diffs animate.
+   3. Freshness is visible. Readings decay and desaturate as they age.
+   ========================================================================== */
+
+:root {
+  /* ---- surfaces: deep, cool, low-glare instrument substrate ---- */
+  --bg-void: #04090b;
+  --bg-base: #071417;
+  --bg-panel: #0b1e22;
+  --bg-raise: #102a2f;
+  --bg-inset: #061215;
+
+  --line: #16383c;
+  --line-soft: #0f272b;
+  --line-strong: #1f4b50;
+
+  /* ---- ink: three levels only, so hierarchy stays readable ---- */
+  --ink: #e4f2f0;
+  --ink-2: #8fb0af;
+  --ink-3: #557574;
+
+  /* ---- chrome: cyan. Never green. ---- */
+  --sig: #2ad4f0;
+  --sig-dim: #1a94ac;
+  --sig-soft: rgba(42, 212, 240, 0.14);
+  --sig-line: rgba(42, 212, 240, 0.34);
+  --sig-glow: rgba(42, 212, 240, 0.55);
+
+  /* ---- air data scale: the only saturated palette in the product ---- */
+  --aqi-good: #2fd48f;
+  --aqi-moderate: #e8cf5a;
+  --aqi-high: #f1a545;
+  --aqi-critical: #ff5f58;
+  --aqi-severe: #b96cff;
+
+  /* ---- freshness states ---- */
+  --fresh: var(--sig);
+  --aging: var(--aqi-moderate);
+  --stale: #5c7573;
+
+  /* ---- geometry: tighter, more instrument-like than the v1 rounding ---- */
+  --r-sm: 4px;
+  --r-md: 7px;
+  --r-lg: 10px;
+
+  /* ---- motion: durations only. Nothing loops. ---- */
+  --t-diff: 320ms;
+  --t-panel: 220ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --mono: "DM Mono", ui-monospace, monospace;
+  --sans: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+}
+
+/* ============================ chrome: de-mint ============================= */
+/* Rule 1: the old palette used #3ed7bd for chrome AND #3be1b0 for "safe air".
+   Cyan chrome re-separates them. */
+
+.brand-name { color: var(--ink); }
+.brand-name span { color: var(--sig); }
+.brand-mark span { background: var(--sig); box-shadow: 0 0 10px var(--sig-glow); }
+
+.nav-link { color: var(--ink-2); transition: color var(--t-panel) var(--ease), background var(--t-panel) var(--ease); }
+.nav-link:hover { color: var(--ink); background: rgba(42, 212, 240, 0.06); }
+.nav-link.active {
+  color: var(--sig);
+  background: var(--sig-soft);
+  box-shadow: inset 2px 0 0 var(--sig);
+}
+.nav-link em { background: var(--sig-soft); color: var(--sig); }
+
+.primary-button {
+  background: var(--sig);
+  color: #04191d;
+  font-weight: 700;
+  transition: transform var(--t-panel) var(--ease), box-shadow var(--t-panel) var(--ease), filter var(--t-panel) var(--ease);
+  box-shadow: 0 0 0 1px var(--sig-line), 0 6px 18px -8px var(--sig-glow);
+}
+.primary-button:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px var(--sig), 0 10px 26px -8px var(--sig-glow); }
+.primary-button:active { transform: translateY(0); }
+
+.icon-button { color: var(--ink-2); transition: color var(--t-panel) var(--ease), border-color var(--t-panel) var(--ease); }
+.icon-button:hover { color: var(--sig); border-color: var(--sig-line); }
+
+.panel-action { color: var(--sig); }
+.panel-action:hover { color: var(--ink); }
+
+.panel, .stat-card, .map-card, .intelligence-card {
+  background: var(--bg-panel);
+  border-color: var(--line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 18px 40px -32px #000;
+}
+.panel-header h2, .stat-value, .page-heading h1 { color: var(--ink); }
+.panel-header p, .heading-copy { color: var(--ink-3); }
+
+/* ========================= rule 2: live markers stop looping ============== */
+/* The old .live-indicator / .ai-pulse animated forever — including on 100-day-old
+   data. They now hold steady and only bloom when data actually changes. */
+
+.live-indicator,
+.ai-pulse {
+  animation: none;
+  background: var(--stale);
+  box-shadow: none;
+}
+[data-fresh="live"] .live-indicator,
+[data-fresh="live"] .ai-pulse {
+  background: var(--sig);
+  box-shadow: 0 0 8px var(--sig-glow);
+}
+@keyframes sig-bloom {
+  0% { box-shadow: 0 0 0 0 var(--sig-glow); }
+  100% { box-shadow: 0 0 0 14px rgba(42, 212, 240, 0); }
+}
+/* Applied for one frame-cycle by React only when the value actually changes. */
+.is-diff { animation: sig-bloom 900ms var(--ease); }
+
+/* ========================= rule 3: freshness is visible =================== */
+/* A reading that is not fresh must LOOK not fresh. Desaturation is the tell. */
+
+[data-fresh="live"] { --fresh-opacity: 1; }
+[data-fresh="aging"] { --fresh-opacity: 0.72; }
+[data-fresh="stale"] { --fresh-opacity: 0.44; }
+
+.freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  opacity: var(--fresh-opacity, 1);
+  transition: opacity var(--t-diff) var(--ease);
+}
+.freshness::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--stale);
+}
+[data-fresh="live"] .freshness::before { background: var(--sig); box-shadow: 0 0 7px var(--sig-glow); }
+[data-fresh="aging"] .freshness::before { background: var(--aging); }
+[data-fresh="stale"] .freshness::before { background: var(--stale); }
+
+/* Rule 3, tuned: a stale reading must read as stale, not as disabled.
+   Full desaturation made the ring look broken, so it keeps a trace of colour. */
+[data-fresh="stale"] .aqi-ring,
+[data-fresh="stale"] .stat-value,
+[data-fresh="stale"] .intelligence-alert { filter: saturate(0.55) brightness(0.82); }
+[data-fresh="aging"] .aqi-ring,
+[data-fresh="aging"] .stat-value { filter: saturate(0.85); }
+[data-fresh] .aqi-ring,
+[data-fresh] .stat-value { transition: filter var(--t-diff) var(--ease); }
+
+/* ============================ the hero instrument ======================== */
+/* Q4: the detection is the product. AQI is commodity. */
+
+.hero-detection {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.hero-detection::before {
+  /* severity edge: the instrument announces its own state */
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--sev, var(--stale));
+  box-shadow: 0 0 18px var(--sev, transparent);
+}
+.hero-main { padding: 22px 24px; border-right: 1px solid var(--line-soft); }
+.hero-evidence { padding: 22px 24px; background: var(--bg-inset); }
+
+.hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sev, var(--sig));
+  margin-bottom: 14px;
+}
+.hero-title {
+  font: 700 clamp(26px, 3.4vw, 40px)/1.02 var(--sans);
+  letter-spacing: -0.035em;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+.hero-sub { color: var(--ink-2); font-size: 12px; margin: 0 0 20px; }
+
+.hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.hero-metrics div { display: flex; flex-direction: column; gap: 5px; }
+.hero-metrics small { font: 400 9px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.hero-metrics strong {
+  font: 600 26px/1 var(--sans);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--t-diff) var(--ease);
+}
+.hero-metrics strong.is-sev { color: var(--sev); }
+
+/* an unknown number must never read as a real one */
+.hero-metrics strong.is-unknown { color: var(--ink-3); }
+
+.evidence-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.evidence-row:last-of-type { border-bottom: 0; }
+.evidence-row svg { flex: none; margin-top: 1px; color: var(--sig-dim); }
+.evidence-row.is-empty { color: var(--ink-3); }
+.evidence-row.is-empty svg { color: var(--stale); }
+.evidence-row b { color: var(--ink); font-weight: 600; }
+
+/* ========================== AQI data palette ============================== */
+.aqi-ring strong, .confidence-score strong { color: var(--sev, var(--sig)); }
+.ring-glow { box-shadow: 0 0 34px -6px var(--sev, var(--sig)); }
+.confidence-bar { background: var(--line-soft); }
+.confidence-bar span { background: var(--sev, var(--sig)); transition: width var(--t-diff) var(--ease); }
+.meter-track span { background: linear-gradient(90deg, var(--aqi-good), var(--aqi-moderate), var(--aqi-high), var(--aqi-critical)); }
+
+.sev-good { --sev: var(--aqi-good); }
+.sev-moderate { --sev: var(--aqi-moderate); }
+.sev-high { --sev: var(--aqi-high); }
+.sev-critical { --sev: var(--aqi-critical); }
+.sev-severe { --sev: var(--aqi-severe); }
+.sev-unknown { --sev: var(--stale); }
+
+.hotspot-marker, .map-hotspot { color: var(--sev, var(--ink-2)); }
+.map-hotspot i { background: var(--sev, var(--aqi-good)); box-shadow: 0 0 22px currentColor; }
+
+/* legend dots are DATA — they keep the AQI palette */
+.legend-dot.safe { background: var(--aqi-good); }
+.legend-dot.warning { background: var(--aqi-high); }
+.legend-dot.critical-dot { background: var(--aqi-critical); }
+.map-legend strong { color: var(--ink-2); }
+
+/* stat cards: the icon tile must not be mint-by-default (it reads as "safe") */
+.stat-icon { background: var(--sig-soft); color: var(--sig); }
+.stat-icon.sev-good { background: rgba(47, 212, 143, 0.12); color: var(--aqi-good); }
+.stat-icon.sev-moderate { background: rgba(232, 207, 90, 0.12); color: var(--aqi-moderate); }
+.stat-icon.sev-high { background: rgba(241, 165, 69, 0.12); color: var(--aqi-high); }
+.stat-icon.sev-critical { background: rgba(255, 95, 88, 0.12); color: var(--aqi-critical); }
+.stat-icon.sev-severe { background: rgba(185, 108, 255, 0.12); color: var(--aqi-severe); }
+.stat-icon.sig { background: var(--sig-soft); color: var(--sig); }
+
+/* status pills follow the same data palette as the icon tile */
+.status-pill { background: var(--sig-soft); color: var(--sig); }
+.status-pill.sev-good { background: rgba(47, 212, 143, 0.12); color: var(--aqi-good); }
+.status-pill.sev-moderate { background: rgba(232, 207, 90, 0.12); color: var(--aqi-moderate); }
+.status-pill.sev-high { background: rgba(241, 165, 69, 0.12); color: var(--aqi-high); }
+.status-pill.sev-critical { background: rgba(255, 95, 88, 0.12); color: var(--aqi-critical); }
+.status-pill.sev-severe { background: rgba(185, 108, 255, 0.12); color: var(--aqi-severe); }
+
+/* the chart caption was shouting louder than the data it describes */
+.chart-value { color: var(--ink-3); font-size: 10px; letter-spacing: 0.06em; }
+
+/* ============================ the honest chart =========================== */
+/* Empty buckets arrive as null. They must render as a gap, never as AQI 0. */
+
+.bar-chart { align-items: flex-end; }
+.chart-column { position: relative; }
+.chart-column .bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, var(--sig), var(--sig-dim));
+  transition: height var(--t-diff) var(--ease);
+}
+.chart-column.is-empty .bar {
+  height: 2px;
+  background: var(--line);
+  opacity: 0.55;
+}
+.chart-column.is-empty small,
+.chart-column.is-empty b { color: var(--ink-3); }
+.chart-column b { font-variant-numeric: tabular-nums; }
+
+/* ============================== status line ============================== */
+.status-line { color: var(--ink-2); }
+.pulse-dot { background: var(--aqi-good); box-shadow: 0 0 7px rgba(47, 212, 143, 0.6); }
+.pulse-dot-warn { background: var(--aqi-high); box-shadow: 0 0 7px rgba(241, 165, 69, 0.6); }
+
+.alert-dot { background: var(--aqi-critical); }
+
+/* ===================== the real globe (lazy, three.js) ==================== */
+.globe-canvas {
+  position: absolute;
+  inset: 0;
+}
+.globe-canvas canvas { display: block; width: 100%; height: 100%; }
+
+.globe-loading,
+.globe-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 400 10px/1.6 var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 0 24px;
+}
+/* The globe is real now, so its old decorative skin is gone. The orbit rings
+   stay as chrome - they carry no data claim. */
+.hero-globe { background: radial-gradient(circle at 50% 45%, rgba(42, 212, 240, 0.09), transparent 62%); }
+
+/* ========================= reduced motion: total opt-out ================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

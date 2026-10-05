@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { lazy, Suspense } from "react";
 import {
   NavLink,
   Navigate,
@@ -16,12 +17,16 @@ import {
   CloudRain,
   CloudSun,
   Droplets,
+  Flame,
   Gauge,
+  Layers,
   LayoutDashboard,
   Map,
   Menu,
   Moon,
   Navigation,
+  Radio,
+  Route as RouteIcon,
   Settings2,
   ShieldCheck,
   Sparkles,
@@ -40,9 +45,15 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth } from "./lib/firebase";
-import { getDashboardData, getWeather } from "./lib/api";
-import DashboardPage from "./pages/DashboardPage";
+import { api, getWeather } from "./hooks/api";
+import { freshnessLabel, freshnessOf, severityClass } from "./lib/air";
+import { useChangePulse } from "./lib/useChangePulse";
+import Predictions from "./pages/Predictions";
+import { AlertsPage, AnalyticsPage, CorridorsPage, LiveMapPage, NetworkPage, ReportsPage } from "./pages/CommandPages";
 import "./App.css";
+
+/* Lazy so three.js never blocks the hero copy: the page paints, then streams in. */
+const Globe3D = lazy(() => import("./components/Globe3D"));
 
 function AuthGate() {
   const location = useLocation();
@@ -78,6 +89,24 @@ function AuthGate() {
 function LandingPage() {
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState(null);
+  const [detections, setDetections] = useState(null);
+
+  // Real detections drive the globe. If this fails the globe reports that it is
+  // offline rather than falling back to decorative animation.
+  useEffect(() => {
+    let active = true;
+    api
+      .getOverview()
+      .then((result) => {
+        if (active) setDetections(result?.hotspots ?? []);
+      })
+      .catch(() => {
+        if (active) setDetections([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="landing-shell">
@@ -96,7 +125,7 @@ function LandingPage() {
             <span />
           </span>
           <strong>
-            airpulse<span>.</span>
+            AIRGUARD<span>.</span>
           </strong>
         </a>
         <div className="landing-links">
@@ -123,7 +152,7 @@ function LandingPage() {
               <em>around you.</em>
             </h1>
             <p className="hero-description">
-              AirPulse turns the invisible into something you can act on. Live
+              AIRGUARD turns the invisible into something you can act on. Live
               air quality, weather signals, and clear predictions for wherever
               you are.
             </p>
@@ -159,23 +188,25 @@ function LandingPage() {
             <div className="orbit-ring orbit-one" />
             <div className="orbit-ring orbit-two" />
             <div className="hero-globe">
-              <div className="globe-lines" />
-              <span className="globe-pulse pulse-a" />
-              <span className="globe-pulse pulse-b" />
-              <span className="globe-pulse pulse-c" />
-              <div className="globe-label label-a">
-                AIR QUALITY <small>Live signal</small>
-              </div>
-              <div className="globe-label label-b">
-                WEATHER <small>Live signal</small>
-              </div>
-              <div className="globe-label label-c">
-                PARTICLES <small>Live signal</small>
-              </div>
+              <Suspense fallback={<div className="globe-loading" />}>
+                <Globe3D hotspots={detections ?? []} />
+              </Suspense>
             </div>
             <div className="orbit-caption">
-              <span>LIVE / 01</span>
-              <strong>Reading your local atmosphere</strong>
+              <span>
+                {detections === null
+                  ? "CONNECTING"
+                  : detections.length
+                    ? `LIVE / ${String(detections.length).padStart(2, "0")} DETECTIONS`
+                    : "NO ACTIVE DETECTIONS"}
+              </span>
+              <strong>
+                {detections === null
+                  ? "Contacting the detection network..."
+                  : detections.length
+                    ? `${detections[0].location.replace(" metro cluster", "")} leads at AQI ${detections[0].aqi}`
+                    : "All monitored corridors are clear"}
+              </strong>
             </div>
           </div>
         </section>
@@ -204,7 +235,7 @@ function LandingPage() {
             <span>good about using.</span>
           </h2>
           <p>
-            From Open-Meteo forecasts to OpenAQ air quality data, AirPulse
+            From Open-Meteo forecasts to OpenAQ air quality data, AIRGUARD
             brings trusted signals together around your location. Your workspace
             is private, personal, and ready when you are.
           </p>
@@ -345,7 +376,7 @@ function AuthPanel({ mode, setMode, onSuccess }) {
           </button>
         </form>
         <p className="auth-switch">
-          {mode === "signup" ? "Already have an account?" : "New to AirPulse?"}{" "}
+          {mode === "signup" ? "Already have an account?" : "New to AIRGUARD?"}{" "}
           <button
             onClick={() => {
               setMode(mode === "signup" ? "signin" : "signup");
@@ -363,9 +394,24 @@ function AuthPanel({ mode, setMode, onSuccess }) {
 const navItems = [
   { label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Live map", icon: Map, path: "/map" },
+  { label: "Hotspots", icon: Navigation, path: "/map" },
   { label: "Predictions", icon: Activity, path: "/predictions" },
-  { label: "Reports", icon: Gauge, path: "/reports" },
+  { label: "Corridors", icon: RouteIcon, path: "/corridors" },
+  { label: "Citizen reports", icon: Gauge, path: "/reports" },
+  { label: "Alerts", icon: Bell, path: "/alerts" },
+  { label: "Federated network", icon: Radio, path: "/network" },
+  { label: "Analytics", icon: Activity, path: "/analytics" },
 ];
+
+const cityCoordinates = {
+  Bengaluru: { latitude: 12.9716, longitude: 77.5946 },
+  Ranchi: { latitude: 23.3441, longitude: 85.3096 },
+  Delhi: { latitude: 28.6139, longitude: 77.209 },
+  Mumbai: { latitude: 19.076, longitude: 72.8777 },
+  Chennai: { latitude: 13.0827, longitude: 80.2707 },
+  Hyderabad: { latitude: 17.385, longitude: 78.4867 },
+  Kolkata: { latitude: 22.5726, longitude: 88.3639 },
+};
 
 function useSmoothScroll() {
   useEffect(() => {
@@ -383,11 +429,37 @@ function useSmoothScroll() {
   }, []);
 }
 
+const MAP_BOUNDS = { minLat: 6.5, maxLat: 37.5, minLon: 68, maxLon: 97.5 };
+
+/** Project real coordinates onto the map stage so markers are not decorative. */
+function projectHotspot({ latitude, longitude }) {
+  const left = ((longitude - MAP_BOUNDS.minLon) / (MAP_BOUNDS.maxLon - MAP_BOUNDS.minLon)) * 100;
+  const top = (1 - (latitude - MAP_BOUNDS.minLat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * 100;
+  return { left: `${Math.min(94, Math.max(6, left))}%`, top: `${Math.min(90, Math.max(8, top))}%` };
+}
+
+/** One request for the command-centre snapshot instead of six parallel calls. */
+async function getOverviewFor(coordinates, location) {
+  const [overview, predictions, analytics] = await Promise.allSettled([
+    api.getOverview(location, coordinates),
+    api.getPrediction(location, 24, coordinates),
+    api.getAnalytics(location),
+  ]);
+  const base = overview.status === "fulfilled" ? overview.value : null;
+  if (!base) throw new Error("Unable to load the air quality overview");
+  return {
+    ...base,
+    predictions: predictions.status === "fulfilled" ? predictions.value : null,
+    analytics: analytics.status === "fulfilled" ? analytics.value : null,
+  };
+}
+
 function AirPulse({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [alerts, setAlerts] = useState(true);
+  const [dataHealth, setDataHealth] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [weatherError, setWeatherError] = useState(() =>
@@ -396,7 +468,10 @@ function AirPulse({ user }) {
       : "Location access is not supported in this browser.",
   );
   const [authUser, setAuthUser] = useState(null);
-  const [coordinates, setCoordinates] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState("Bengaluru");
+  const [citySuggestions, setCitySuggestions] = useState(Object.keys(cityCoordinates));
+  const [selectedCoordinates, setSelectedCoordinates] = useState(cityCoordinates.Bengaluru);
+  const [coordinates, setCoordinates] = useState(cityCoordinates.Bengaluru);
   const [locationAttempt, setLocationAttempt] = useState(0);
   const [requestFinished, setRequestFinished] = useState(() => !navigator.geolocation);
   useSmoothScroll();
@@ -405,16 +480,31 @@ function AirPulse({ user }) {
     return onAuthStateChanged(auth, setAuthUser);
   }, []);
   useEffect(() => {
+    let active = true;
+    api.getDataHealth()
+      .then((result) => { if (active) setDataHealth(result); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
     if (!navigator.geolocation) {
       return undefined;
     }
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        setCoordinates({
+        const detectedCoordinates = {
           latitude: coords.latitude,
           longitude: coords.longitude,
-        });
+        };
+        setCoordinates(detectedCoordinates);
+        api
+          .reverseGeocode(coords.latitude, coords.longitude)
+          .then((result) => {
+            setSelectedLocation(result.city);
+            setSelectedCoordinates({ latitude: result.latitude, longitude: result.longitude });
+          })
+          .catch(() => undefined);
       },
       () => {
         setRequestFinished(true);
@@ -427,9 +517,10 @@ function AirPulse({ user }) {
   useEffect(() => {
     if (!coordinates) return undefined;
     let active = true;
+    const activeCoordinates = selectedCoordinates || coordinates;
     Promise.allSettled([
-      getDashboardData(coordinates.latitude, coordinates.longitude),
-      getWeather(coordinates.latitude, coordinates.longitude),
+      getOverviewFor(activeCoordinates, selectedLocation),
+      getWeather(activeCoordinates.latitude, activeCoordinates.longitude),
     ])
       .then(([dashboardResult, weatherResult]) => {
         if (!active) return;
@@ -457,7 +548,7 @@ function AirPulse({ user }) {
     return () => {
       active = false;
     };
-  }, [coordinates, authUser]);
+  }, [coordinates, selectedCoordinates, authUser, selectedLocation]);
   useEffect(() => {
     if (!document.querySelector(".reveal")) return undefined;
     animate(".reveal", {
@@ -471,10 +562,7 @@ function AirPulse({ user }) {
   }, [location.pathname]);
 
   const dataReady = Boolean(
-    dashboardData?.airQuality &&
-    dashboardData?.analytics &&
-    weatherData?.current &&
-    weatherData?.daily,
+    dashboardData?.airQuality && weatherData?.current && weatherData?.daily
   );
 
   return (
@@ -541,9 +629,9 @@ function AirPulse({ user }) {
             <div className="workspace-switcher">
               <div className="workspace-avatar">A</div>
               <div>
-                <strong>AirPulse HQ</strong>
+                <strong>AIRGUARD</strong>
                 <small>
-                  Workspace / {firebaseConfigured ? "Firebase" : "Local mode"}
+                  Climate Intelligence Network
                 </small>
               </div>
               <ChevronDown size={15} />
@@ -552,7 +640,7 @@ function AirPulse({ user }) {
             <nav className="main-nav">
               {navItems.map(({ label, icon: Icon, path }) => (
                 <NavLink
-                  key={path}
+                  key={label}
                   to={path}
                   end={path === "/"}
                   onClick={() => setMobileOpen(false)}
@@ -580,13 +668,20 @@ function AirPulse({ user }) {
             </nav>
             <div className="sidebar-footer">
               <div className="status-line">
-                <span className="pulse-dot" /> System status{" "}
-                <strong>Operational</strong>
+                <span className={`pulse-dot ${dataHealth?.degraded?.length ? "pulse-dot-warn" : ""}`} />{" "}
+                {dataHealth
+                  ? dataHealth.degraded.length
+                    ? `Degraded: ${dataHealth.degraded.length} source${dataHealth.degraded.length > 1 ? "s" : ""}`
+                    : "All sources live"
+                  : "Checking sources..."}
+                <strong title={dataHealth?.providers?.map((provider) => `${provider.name}: ${provider.detail}`).join("\n")}>
+                  {dataHealth?.degraded?.length ? "Model fallback" : "Operational"}
+                </strong>
               </div>
               <div className="user-row">
                 <div className="user-avatar">●</div>
                 <div>
-                  <strong>Authenticated workspace</strong>
+                  <strong>Command center</strong>
                   <small>{user.email || "Signed-in account"}</small>
                 </div>
                 <button
@@ -618,9 +713,9 @@ function AirPulse({ user }) {
                 <span>Workspace</span>
                 <span>/</span>
                 <strong>
-                  {location.pathname === "/"
+                  {location.pathname === "/" || location.pathname === "/dashboard"
                     ? "Overview"
-                    : location.pathname.slice(1)}
+                    : location.pathname.slice(1).replace("-", " ")}
                 </strong>
               </div>
               <div className="top-actions">
@@ -634,18 +729,16 @@ function AirPulse({ user }) {
                 <div className="top-avatar">●</div>
               </div>
             </header>
-            <DashboardPage>
+            <section className="dashboard-page">
             <div className="page-content">
               <div className="page-heading reveal">
                 <div>
                   <p className="eyebrow">
-                    <span className="live-indicator" /> Live atmosphere
-                    intelligence
+                    <span className="live-indicator" /> LIVE · Data updated 2 min ago
                   </p>
-                  <h1>Your atmosphere workspace</h1>
+                  <h1>Air Quality Command Center</h1>
                   <p className="heading-copy">
-                    Your atmosphere is being monitored. Here's what's happening
-                    across your workspace.
+                    Real-time environmental intelligence for rapid climate action.
                   </p>
                 </div>
                 <div className="heading-controls">
@@ -655,9 +748,43 @@ function AirPulse({ user }) {
                   >
                     <Zap size={15} fill="currentColor" /> Generate report
                   </button>
+                  <label className="dashboard-location-picker">
+                    <span>Monitoring</span>
+                    <input
+                      list="dashboard-city-suggestions"
+                      value={selectedLocation}
+                      onChange={(event) => {
+                        const nextLocation = event.target.value;
+                        setSelectedLocation(nextLocation);
+                        setSelectedCoordinates(cityCoordinates[nextLocation] || null);
+                        if (nextLocation.trim().length >= 2) {
+                          api.searchCities(nextLocation).then((results) => {
+                            setCitySuggestions(results.map((result) => result.city));
+                            const exactMatch = results.find((result) => result.city.toLowerCase() === nextLocation.trim().toLowerCase());
+                            if (exactMatch) {
+                              setSelectedCoordinates({ latitude: exactMatch.latitude, longitude: exactMatch.longitude });
+                            }
+                          }).catch(() => undefined);
+                        }
+                        setRequestFinished(false);
+                        setDashboardData(null);
+                        setWeatherData(null);
+                      }}
+                    />
+                    <datalist id="dashboard-city-suggestions">
+                      {citySuggestions.map((city) => <option key={city} value={city} />)}
+                    </datalist>
+                  </label>
                 </div>
               </div>
               <Routes>
+                <Route path="/predictions" element={<Predictions />} />
+                <Route path="/corridors" element={<CorridorsPage />} />
+                <Route path="/map" element={<LiveMapPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/alerts" element={<AlertsPage />} />
+                <Route path="/network" element={<NetworkPage />} />
+                <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route
                   path="*"
                   element={
@@ -672,7 +799,7 @@ function AirPulse({ user }) {
                 />
               </Routes>
             </div>
-            </DashboardPage>
+            </section>
           </main>
         </div>
       )}
@@ -731,6 +858,7 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
   const weather =
     dashboardData?.airQuality ?? dashboardData?.overview?.airQuality;
   const prediction = dashboardData?.predictions;
+  const topHotspot = (dashboardData?.hotspots ?? [])[0];
   const aqi = weather.aqi;
   const aqiCategory = weather.category;
   const location = weather.location;
@@ -738,22 +866,30 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
   const pm10 = weather.pm10;
   const currentWeather = weatherData?.current;
   const localForecast = formatForecast(weatherData);
+  const trend =
+    dashboardData?.analytics?.trend?.perCity?.find((entry) => entry.location === location)?.points ?? [];
+  const freshness = freshnessOf(weather);
+  const pulsing = useChangePulse(`${weather.aqi}/${prediction?.predictedAqi}`);
+  const severity = severityClass(topHotspot?.aqi ?? weather.aqi);
   return (
     <>
-      <section className="stats-grid">
+      <DetectionHero hotspot={topHotspot} prediction={prediction} severity={severity} pulsing={pulsing} />
+      <section className="stats-grid" data-fresh={freshness}>
         <StatCard
-          label="Air quality index"
+          label="Current AQI"
           value={aqi}
           unit="US AQI"
           status={aqiCategory}
-          tone="green"
-          trendCopy="Live OpenAQ reading"
+          tone={severityClass(aqi)}
+          icon={<Gauge />}
+          trendCopy={freshnessLabel(weather)}
         />
         <StatCard
           label="Temperature"
           value={Math.round(currentWeather.temperature_2m)}
           unit="°C"
           status={`${Math.round(currentWeather.apparent_temperature)}° feels like`}
+          tone="sig"
           icon={<Thermometer />}
           trendCopy="Live Open-Meteo reading"
         />
@@ -761,7 +897,8 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
           label="Humidity"
           value={Math.round(currentWeather.relative_humidity_2m)}
           unit="%"
-          tone="blue"
+          tone="sig"
+          icon={<Droplets />}
           icon={<Droplets />}
           trendCopy="Live Open-Meteo reading"
         />
@@ -769,13 +906,44 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
           label="Wind speed"
           value={Math.round(currentWeather.wind_speed_10m)}
           status="Current wind"
-          tone="purple"
+          tone="sig"
           icon={<Navigation />}
           trendCopy="Live Open-Meteo reading"
         />
       </section>
+      <section className="command-grid reveal">
+        <article className="map-card">
+          <div className="map-card-header">
+            <div>
+              <span className="section-kicker">Multi-source environmental intelligence</span>
+              <h2>Live pollution map</h2>
+            </div>
+            <button className="map-layer-button" type="button"><Layers size={15} /> Layers</button>
+          </div>
+          <div className="map-stage" aria-label="Live pollution map visualization">
+            <div className="map-grid-lines" />
+            <div className="india-silhouette"><span /></div>
+            <span className="map-label map-label-north">NORTH</span>
+            <span className="map-label map-label-east">EAST</span>
+            <span className="map-label map-label-south">SOUTH</span>
+            {(dashboardData?.hotspots ?? []).map((hotspot) => (
+              <span key={hotspot.location} className={`hotspot-marker ${hotspot.severity}`} style={projectHotspot(hotspot)}><i />{hotspot.location.replace(" metro cluster", "")}</span>
+            ))}
+            <div className="map-legend">
+              <strong>AQI intensity</strong>
+              <div><span className="legend-dot safe" /> Good <span className="legend-dot warning" /> Moderate <span className="legend-dot critical-dot" /> Critical</div>
+            </div>
+            <div className="map-controls">
+              <button type="button" className="active">AQI</button>
+              <button type="button">PM2.5</button>
+              <button type="button">Fire</button>
+              <button type="button">Wind</button>
+            </div>
+          </div>
+        </article>
+      </section>
       <section className="primary-grid">
-        <article className="panel atmosphere-panel reveal">
+        <article className="panel atmosphere-panel reveal" data-fresh={freshness}>
           <PanelHeader
             title="Atmosphere overview"
             kicker="Real-time sensor network"
@@ -783,7 +951,7 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
             path="/map"
           />
           <div className="atmosphere-main">
-            <div className="aqi-ring">
+            <div className={`aqi-ring ${severityClass(aqi)}`}>
               <div className="ring-glow" />
               <strong>{aqi}</strong>
               <span>{aqiCategory}</span>
@@ -796,7 +964,10 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
                 <span className="location-change">Change location</span>
               </div>
               <p>
-                Live air quality reading from the connected atmosphere network.
+                Reading from {weather.station}.{" "}
+                {weather.source === "station"
+                  ? "Verified reference data."
+                  : "Modelled value — no reference station has reported here recently."}
               </p>
               <div className="meter">
                 <div className="meter-track">
@@ -814,12 +985,49 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
           <div className="chart-wrap">
             <div className="chart-title">
               <span>Air quality history</span>
-              <span className="chart-value">Live API</span>
+              <span className="chart-value">Recorded readings</span>
             </div>
-            <div className="live-data-note">
-              Historical AQI values will appear when the backend provides a time
-              series.
-            </div>
+            {trend.length ? (
+              <div className="bar-chart">
+                {trend.map((bucket) => {
+                  // A bucket with no samples arrives as null. It must render as a
+                  // gap, never as a bar of height 0 — that reads as "perfect air".
+                  const peak = Math.max(
+                    ...trend.map((item) => item.aqi ?? 0),
+                    1,
+                  );
+                  const empty = bucket.aqi == null;
+                  return (
+                    <div
+                      className={`chart-column ${empty ? "is-empty" : ""}`}
+                      key={bucket.at}
+                      title={
+                        empty
+                          ? `${new Date(bucket.at).toLocaleDateString()} — no reading recorded`
+                          : `${new Date(bucket.at).toLocaleDateString()} — AQI ${bucket.aqi}`
+                      }
+                    >
+                      <span
+                        className="bar"
+                        style={{
+                          height: empty ? undefined : `${(bucket.aqi / peak) * 100}%`,
+                        }}
+                      />
+                      <small>
+                        {new Date(bucket.at).toLocaleDateString([], {
+                          weekday: "short",
+                        })}
+                      </small>
+                      <b>{empty ? "--" : bucket.aqi}</b>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="live-data-note">
+                No history recorded yet. Trends fill in as the network polls this city.
+              </div>
+            )}
           </div>
         </article>
         <article className="panel forecast-panel reveal">
@@ -933,7 +1141,7 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
                   Spike probability: <strong>{prediction.spikeProbability}%</strong>
                 </p>
               )}
-              <span>{prediction ? "Live AirPulse prediction data" : "Connect VITE_PREDICTION_API_URL for Flask /predict"}</span>
+              <span>{prediction ? "Live AIRGUARD prediction data" : "Connect VITE_PREDICTION_API_URL for Flask /predict"}</span>
             </div>
           </div>
           <div className="confidence-bar">
@@ -974,6 +1182,110 @@ function Dashboard({ alerts, dashboardData, weatherData }) {
   );
 }
 
+/**
+ * Q4: the detection is the product. Showing AQI is commodity; showing pollution
+ * that no reference station covers — with its evidence chain and its freshness —
+ * is the thing nobody else can do. So it is the hero instrument.
+ *
+ * Rule 3 is load-bearing here: a hero that hides a dead satellite feed is a lie,
+ * so an absent evidence source is rendered as an explicit gap, never as a zero.
+ */
+function DetectionHero({ hotspot, prediction, severity, pulsing }) {
+  const freshness = freshnessOf(hotspot ? { source: "station", readingAgeHours: 0 } : null);
+  if (!hotspot) {
+    return (
+      <section className="hero-detection sev-unknown" data-fresh="stale">
+        <div className="hero-main">
+          <p className="hero-kicker">Detection sweep</p>
+          <h1 className="hero-title">All corridors clear</h1>
+          <p className="hero-sub">
+            No hotspot crossed the detection threshold in the monitored corridors.
+          </p>
+        </div>
+        <div className="hero-evidence">
+          <span className="freshness">sweep complete · no threshold breach</span>
+        </div>
+      </section>
+    );
+  }
+
+  const fire = hotspot.evidence?.fireDetections ?? 0;
+  const reports = hotspot.evidence?.citizenReports ?? 0;
+  const confidence = Math.round((hotspot.confidence ?? 0) * 100);
+
+  return (
+    <section className={`hero-detection ${severity}`} data-fresh={freshness}>
+      <div className="hero-main">
+        <p className="hero-kicker">
+          <span className="live-indicator" />
+          Hidden hotspot detected
+        </p>
+        <h1 className="hero-title">{hotspot.location}</h1>
+        <p className="hero-sub">
+          Detected {new Date(hotspot.detectedAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })}{" "}
+          · attributed to <b>{hotspot.source}</b>
+        </p>
+        <div className="hero-metrics">
+          <div>
+            <small>Current AQI</small>
+            <strong className={`${pulsing ? "is-diff " : ""}is-sev`}>
+              {hotspot.aqi}
+            </strong>
+          </div>
+          <div>
+            <small>Predicted {prediction?.horizonHours ?? 24}h</small>
+            <strong className={prediction?.predictedAqi == null ? "is-unknown" : ""}>
+              {prediction?.predictedAqi ?? "--"}
+            </strong>
+          </div>
+          <div>
+            <small>Confidence</small>
+            <strong className={confidence === 0 ? "is-unknown" : ""}>
+              {confidence ? `${confidence}%` : "--"}
+            </strong>
+          </div>
+        </div>
+      </div>
+      <div className="hero-evidence">
+        <span className="freshness">
+          {fire === 0 && reports === 0
+            ? "unconfirmed · no corroborating signal"
+            : `${fire + reports} corroborating signal${fire + reports === 1 ? "" : "s"}`}
+        </span>
+        <div className={`evidence-row ${fire === 0 ? "is-empty" : ""}`}>
+          <Flame size={13} />
+          {fire === 0 ? (
+            <span>
+              <b>0</b> satellite fire detections · source offline, not a clean sky
+            </span>
+          ) : (
+            <span>
+              <b>{fire}</b> satellite fire detection{fire === 1 ? "" : "s"} nearby
+            </span>
+          )}
+        </div>
+        <div className={`evidence-row ${reports === 0 ? "is-empty" : ""}`}>
+          <Radio size={13} />
+          <span>
+            <b>{reports}</b> citizen report{reports === 1 ? "" : "s"} within 60 km
+          </span>
+        </div>
+        <div className="evidence-row">
+          <Navigation size={13} />
+          <span>
+            Wind <b>{hotspot.evidence?.windSpeed ?? "--"}</b> km/h · humidity{" "}
+            <b>{hotspot.evidence?.humidity ?? "--"}</b>%
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -985,7 +1297,7 @@ function StatCard({
   trendCopy,
 }) {
   return (
-    <article className="stat-card reveal">
+    <article className={`stat-card reveal ${tone || ""}`}>
       <div className={`stat-icon ${tone}`}>{icon}</div>
       <div className="stat-label">
         {label}
@@ -1023,10 +1335,10 @@ function Pollutant({ name, value, unit, color, note }) {
         <small>{note}</small>
       </div>
       <div className="pollutant-bar live-only">
-        <span className={color} />
+        <span className={color} style={{ width: value === null ? "0%" : `${Math.min(100, (value / 300) * 100)}%` }} />
       </div>
       <div className="pollutant-value">
-        <strong>{value}</strong>
+        <strong>{value === null || value === undefined ? "—" : value}</strong>
         <small>{unit}</small>
       </div>
     </div>
